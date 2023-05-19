@@ -12,11 +12,11 @@ internal class Program
     readonly static Dictionary<int, string> metadata_dict = new();
     readonly static Dictionary<int, (string, int)> metadata_method_dict = new();
     readonly static List<int> addresses_values = new();
-    
+
     static bool GetSymbols(int offset, StringBuilder builder)
     {
         var any = false;
-        if(stringliteral_dict.TryGetValue(offset, out var symbol))
+        if (stringliteral_dict.TryGetValue(offset, out var symbol))
         {
             builder.AppendLine(symbol);
             any = true;
@@ -45,14 +45,14 @@ internal class Program
         return any;
     }
 
-    enum SymbolType:int
+    enum SymbolType : int
     {
         None = 0,
         String,
         Method,
         OtherData,
     }
-    static void LoadJson(string script_file,string stringliteral_file)
+    static void LoadJson(string script_file, string stringliteral_file)
     {
         var script_json = JsonMapper.ToObject(File.ReadAllText(script_file));
         var stringliteral_json = JsonMapper.ToObject(File.ReadAllText(stringliteral_file));
@@ -123,15 +123,15 @@ internal class Program
         "qword_",
     };
 
-    static string GetDataName(int offset,string name)
+    static string GetDataName(int offset, string name)
     {
-        return metadata_dict.TryGetValue(offset,out var data) ? data : name;
+        return metadata_dict.TryGetValue(offset, out var data) ? data : name;
     }
     static string GetDataName(string name)
     {
         var offset = 0;
         var m = data_name.Match(name);
-        if (m.Success && m.Groups.Count==2)
+        if (m.Success && m.Groups.Count == 2)
         {
             if (int.TryParse(m.Groups[1].Value, System.Globalization.NumberStyles.HexNumber, null, out offset))
             {
@@ -140,16 +140,16 @@ internal class Program
         }
         return name;
     }
-    static string GetSubName(int offset,string functionName)
+    static string GetSubName(int offset, string functionName)
     {
         return method_dict.TryGetValue(offset, out var data) ? data :
-            metadata_method_dict.TryGetValue(offset,out var data2)?data2.Item1: functionName;
+            metadata_method_dict.TryGetValue(offset, out var data2) ? data2.Item1 : functionName;
     }
     static string GetSubName(string name)
     {
         var offset = 0;
         var m = sub_name.Match(name);
-        if (m.Success && m.Groups.Count==2)
+        if (m.Success && m.Groups.Count == 2)
         {
             if (int.TryParse(m.Groups[1].Value, System.Globalization.NumberStyles.HexNumber, null, out offset))
             {
@@ -160,49 +160,39 @@ internal class Program
     }
     static string ReplaceNames(string text)
     {
-        text = data_name.Replace(text, 
-            (n) => { 
-                return GetDataName(n.Value); 
+        text = data_name.Replace(text,
+            (n) =>
+            {
+                return GetDataName(n.Value);
             }
             );
 
         text = sub_name.Replace(text,
-            (n) => { 
-                return GetSubName(n.Value); 
+            (n) =>
+            {
+                return GetSubName(n.Value);
             }
             );
 
         return text;
     }
 
-    static Regex dcx = new ("DC[BWDQ]");
+    static Regex dcx = new("DC[BWDQ]");
     static Regex data_name = new("(off_|byte_|word_|dword_|qword_)([0-9a-fA-F]{1,8})");
     static Regex sub_name = new("sub_([0-9a-fA-F]{1,8})");
     static bool UsefulOnly = true;
-    static int Main(string[] args)
+    static void ProcessListFile(string il2cpp_list_file,string il2cpp_list_compiled_file)
     {
-        if (args.Length < 3)
-        {
-            Console.WriteLine("SymbolCompiler script.json stringliteral.json libil2cpp.lst");
-            return -1;
-        }
-
-        LoadJson(args[0], args[1]);
-        var name_dict = new Dictionary<string, string>();
-
-        var il2cpp_file = args[2];
-        var il2cpp_changed_file 
-            = Path.ChangeExtension(il2cpp_file, ".compiled.lst");
         var current_sub = "";
         var current_function = "";
 
         var insub = false;
-        using var reader = new StreamReader(il2cpp_file);
-        using var writer = new StreamWriter(il2cpp_changed_file);
+        using var reader = new StreamReader(il2cpp_list_file);
+        using var writer = new StreamWriter(il2cpp_list_compiled_file);
         string? line = null;
         var lineno = 0;
         var lastcp = 0;
-        while(null!=(line = reader.ReadLine()))
+        while (null != (line = reader.ReadLine()))
         {
             lineno++;
             var builder = new StringBuilder();
@@ -221,8 +211,8 @@ internal class Program
                     {
                         segment = address[..p];
                         var of = address[(p + 1)..];
-                        if(!int.TryParse(of, 
-                            System.Globalization.NumberStyles.HexNumber,null,
+                        if (!int.TryParse(of,
+                            System.Globalization.NumberStyles.HexNumber, null,
                             out offset))
                         {
 
@@ -239,11 +229,11 @@ internal class Program
                 var _line = line.Replace(", ", ",");
 
                 //Parts
-                var parts = _line.Split(' ',StringSplitOptions.RemoveEmptyEntries);
+                var parts = _line.Split(' ', StringSplitOptions.RemoveEmptyEntries);
                 //data definition
-                if(parts.Length >=2 && dcx.IsMatch(parts[0]))
+                if (parts.Length >= 2 && dcx.IsMatch(parts[0]))
                 {
-                    parts[0] = new string(' ',16)+ parts[0].PadRight(4);
+                    parts[0] = new string(' ', 16) + parts[0].PadRight(4);
                     parts[1] = parts[1].PadRight(20);
 
                     line = string.Join("", parts);
@@ -253,14 +243,14 @@ internal class Program
                 {
                     var n = parts[0];
                     var match = data_name.Match(n);
-                    if(match.Success&&match.Groups.Count>0)
+                    if (match.Success && match.Groups.Count > 0)
                     {
                         //Find the name and replace it
                         //and keep it dict
                         var r = GetDataName(offset, n);
-                        name_dict[n] = parts[0] = r;
+                        parts[0] = r;
                     }
-                    
+
                     {
                         parts[0] = parts[0].PadRight(16);
                         parts[1] = parts[1].PadRight(4);
@@ -270,10 +260,10 @@ internal class Program
                     line = string.Join("", parts);
                     useful = true;
                 }
-                else if(parts.Length == 1 && parts[0].Length>0)
+                else if (parts.Length == 1 && parts[0].Length > 0)
                 {
                     var mcs = sub_name.Match(parts[0]);
-                    if (mcs.Success && mcs.Groups.Count==2)
+                    if (mcs.Success && mcs.Groups.Count == 2)
                     {
                         var ofs = mcs.Groups[1].Value;
 
@@ -290,12 +280,12 @@ internal class Program
                         line += Environment.NewLine;
                         line += $"{segment}:{offset:X8} {{";
                     }
-                    
+
                 }
                 else if (parts.Length == 0)
                 {
                     var comment_v = $"; End of function {current_sub}";
-                    if(comment == comment_v)
+                    if (comment == comment_v)
                     {
                         insub = false;
                         line = "}";
@@ -305,11 +295,11 @@ internal class Program
                     }
 
                 }
-                else if(insub)
+                else if (insub)
                 {
                     if ((p = line.IndexOf(' ')) >= 0)
                         while (p < line.Length && line[p] == ' ') p++;
-                    line = new string(' ',4) + line[..p] + ReplaceNames(line[p..]);
+                    line = new string(' ', 4) + line[..p] + ReplaceNames(line[p..]);
                     useful = true;
                 }
 
@@ -318,7 +308,7 @@ internal class Program
                 {
                     comment = new string(' ', lastcp) + comment;
                 }
-                lastcp = line.Length>0?line.Length:lastcp;
+                lastcp = line.Length > 0 ? line.Length : lastcp;
                 line = $"{segment}:{offset:X8} {line}{comment}";
             }
             //Console.WriteLine($"{lineno} {line}");
@@ -327,6 +317,47 @@ internal class Program
                 writer.WriteLine(line);
             }
         }
+
+    }
+
+    static void ProcessCFile(string il2cpp_c_file, string il2cpp_c_compiled_file)
+    {
+        using var reader = new StreamReader(il2cpp_c_file);
+        using var writer = new StreamWriter(il2cpp_c_compiled_file);
+        string? line = null;
+        while (null != (line = reader.ReadLine()))
+        {
+            line=ReplaceNames(line);
+            writer.WriteLine(line);
+        }
+    }
+    static int Main(string[] args)
+    {
+        if (args.Length < 3)
+        {
+            Console.WriteLine("SymbolCompiler script.json stringliteral.json libil2cpp.lst");
+            return -1;
+        }
+
+        LoadJson(args[0], args[1]);
+
+        if (Path.GetExtension(args[2]).ToLower() == ".lst")
+        {
+            var il2cpp_list_file = args[2];
+            var il2cpp_list_compiled_file
+                = Path.ChangeExtension(il2cpp_list_file, ".compiled.lst");
+
+            ProcessListFile(il2cpp_list_file, il2cpp_list_compiled_file);
+        }
+        else if (Path.GetExtension(args[2]).ToLower() == ".c")
+        {
+            var il2cpp_c_file = args[2];
+            var il2cpp_c_compiled_file
+                = Path.ChangeExtension(il2cpp_c_file, ".compiled.c");
+            ProcessCFile(il2cpp_c_file,il2cpp_c_compiled_file);
+        }
+
+
         return 0;
     }
 }
