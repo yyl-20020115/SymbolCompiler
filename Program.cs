@@ -287,6 +287,8 @@ internal class Program
                             }
                         }
                         useful = true;
+                        line += Environment.NewLine;
+                        line += $"{segment}:{offset:X8} {{";
                     }
                     
                 }
@@ -295,7 +297,8 @@ internal class Program
                     var comment_v = $"; End of function {current_sub}";
                     if(comment == comment_v)
                     {
-                        insub = false; 
+                        insub = false;
+                        line = "}";
                         comment = $"; End of function {current_function}";
                         current_sub = "";//quit subs
                         useful = true;
@@ -306,7 +309,7 @@ internal class Program
                 {
                     if ((p = line.IndexOf(' ')) >= 0)
                         while (p < line.Length && line[p] == ' ') p++;
-                    line = line[..p] + ReplaceNames(line[p..]);
+                    line = new string(' ',4) + line[..p] + ReplaceNames(line[p..]);
                     useful = true;
                 }
 
