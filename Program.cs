@@ -1,9 +1,6 @@
 ﻿using LitJson;
-using System.ComponentModel;
-using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace SymbolCompiler;
 
@@ -92,7 +89,7 @@ internal class Program
             JsonData signature = method["Signature"];
             JsonData typesignature = method["TypeSignature"];
 
-            var mi = $"{name}-{signature}-{typesignature}";
+            var mi = $"{signature}";
             method_dict[(int)address] = mi;
         }
         foreach (JsonData metadata in script_metadata)
@@ -101,7 +98,7 @@ internal class Program
             JsonData name = metadata["Name"];
             JsonData signature = metadata["Signature"];
 
-            var mi = $"{name}-{signature}";
+            var mi = $"{signature}";
             metadata_dict[(int)address] = mi;
         }
         foreach (JsonData metadata in script_metadata_method)
@@ -181,6 +178,7 @@ internal class Program
     static Regex dcx = new ("DC[BWDQ]");
     static Regex data_name = new("(off_|byte_|word_|dword_|qword_)([0-9a-fA-F]{1,8})");
     static Regex sub_name = new("sub_([0-9a-fA-F]{1,8})");
+    static bool UsefulOnly = true;
     static int Main(string[] args)
     {
         if (args.Length < 3)
@@ -208,6 +206,7 @@ internal class Program
         {
             lineno++;
             var builder = new StringBuilder();
+            var useful = false;
             if (line.Length > 0)
             {
                 var segment = "";
@@ -222,7 +221,12 @@ internal class Program
                     {
                         segment = address[..p];
                         var of = address[(p + 1)..];
-                        int.TryParse(of, out offset);
+                        if(!int.TryParse(of, 
+                            System.Globalization.NumberStyles.HexNumber,null,
+                            out offset))
+                        {
+
+                        }
                     }
                     line = line[address.Length..].Trim();
                 }
@@ -243,7 +247,7 @@ internal class Program
                     parts[1] = parts[1].PadRight(20);
 
                     line = string.Join("", parts);
-
+                    useful = true;
                 }
                 else if (parts.Length >= 3 && dcx.IsMatch(parts[1].Trim()))
                 {
@@ -264,6 +268,7 @@ internal class Program
                     }
 
                     line = string.Join("", parts);
+                    useful = true;
                 }
                 else if(parts.Length == 1 && parts[0].Length>0)
                 {
@@ -281,7 +286,9 @@ internal class Program
                                 line = current_function;
                             }
                         }
+                        useful = true;
                     }
+                    
                 }
                 else if (parts.Length == 0)
                 {
@@ -291,18 +298,18 @@ internal class Program
                         insub = false; 
                         comment = $"; End of function {current_function}";
                         current_sub = "";//quit subs
+                        useful = true;
                     }
+
                 }
                 else if(insub)
                 {
                     if ((p = line.IndexOf(' ')) >= 0)
                         while (p < line.Length && line[p] == ' ') p++;
                     line = line[..p] + ReplaceNames(line[p..]);
+                    useful = true;
                 }
-                //if (comment.StartsWith(';'))
-                //{
-                //    comment = new string(' ', 39) + comment;
-                //}
+
                 comment = ReplaceNames(comment);
                 if (line.Length == 0)
                 {
@@ -311,8 +318,11 @@ internal class Program
                 lastcp = line.Length>0?line.Length:lastcp;
                 line = $"{segment}:{offset:X8} {line}{comment}";
             }
-            Console.WriteLine($"{lineno} {line}");
-            writer.WriteLine(line);
+            //Console.WriteLine($"{lineno} {line}");
+            if (useful)
+            {
+                writer.WriteLine(line);
+            }
         }
         return 0;
     }
