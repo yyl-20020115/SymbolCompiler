@@ -233,14 +233,19 @@ internal class Program
                 }
                 //Header
                 var _line = line.Replace(", ", ",");
-                if(lineno == 41)
-                {
 
-                }
                 //Parts
                 var parts = _line.Split(' ',StringSplitOptions.RemoveEmptyEntries);
                 //data definition
-                if (parts.Length >= 3 && dcx.IsMatch(parts[1].Trim()))
+                if(parts.Length >=2 && dcx.IsMatch(parts[0]))
+                {
+                    parts[0] = new string(' ',16)+ parts[0].PadRight(4);
+                    parts[1] = parts[1].PadRight(20);
+
+                    line = string.Join("", parts);
+
+                }
+                else if (parts.Length >= 3 && dcx.IsMatch(parts[1].Trim()))
                 {
                     var n = parts[0];
                     var match = data_name.Match(n);
@@ -251,10 +256,7 @@ internal class Program
                         var r = GetDataName(offset, n);
                         name_dict[n] = parts[0] = r;
                     }
-                    if(line.StartsWith("DCB"))
-                    {
-
-                    }
+                    
                     {
                         parts[0] = parts[0].PadRight(16);
                         parts[1] = parts[1].PadRight(4);
