@@ -203,6 +203,7 @@ internal class Program
         using var writer = new StreamWriter(il2cpp_changed_file);
         string? line = null;
         var lineno = 0;
+        var lastcp = 0;
         while(null!=(line = reader.ReadLine()))
         {
             lineno++;
@@ -232,7 +233,10 @@ internal class Program
                 }
                 //Header
                 var _line = line.Replace(", ", ",");
+                if(lineno == 41)
+                {
 
+                }
                 //Parts
                 var parts = _line.Split(' ',StringSplitOptions.RemoveEmptyEntries);
                 //data definition
@@ -247,21 +251,16 @@ internal class Program
                         var r = GetDataName(offset, n);
                         name_dict[n] = parts[0] = r;
                     }
-                    for(int i = 0; i < parts.Length; i++)
+                    if(line.StartsWith("DCB"))
                     {
-                        switch (i)
-                        {
-                            case 0:
-                            parts[i] =  parts[i].PadRight(dcx.IsMatch(parts[i])?20:16);
-                            break;
-                            case 1:
-                            parts[i] = parts[i].PadRight(4);
-                            break;
-                            case 2:
-                            parts[i] = parts[i].PadRight(20);
-                            break;
-                        }
+
                     }
+                    {
+                        parts[0] = parts[0].PadRight(16);
+                        parts[1] = parts[1].PadRight(4);
+                        parts[2] = parts[2].PadRight(20);
+                    }
+
                     line = string.Join("", parts);
                 }
                 else if(parts.Length == 1 && parts[0].Length>0)
@@ -302,7 +301,13 @@ internal class Program
                 //{
                 //    comment = new string(' ', 39) + comment;
                 //}
-                line = $"{segment}:{offset:X8} {line}{ReplaceNames(comment)}";
+                comment = ReplaceNames(comment);
+                if (line.Length == 0)
+                {
+                    comment = new string(' ', lastcp) + comment;
+                }
+                lastcp = line.Length>0?line.Length:lastcp;
+                line = $"{segment}:{offset:X8} {line}{comment}";
             }
             Console.WriteLine($"{lineno} {line}");
             writer.WriteLine(line);
