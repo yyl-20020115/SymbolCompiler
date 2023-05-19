@@ -134,11 +134,11 @@ internal class Program
     {
         var offset = 0;
         var m = data_name.Match(name);
-        if (m.Success)
+        if (m.Success && m.Groups.Count==2)
         {
-            if (int.TryParse(m.Value, System.Globalization.NumberStyles.HexNumber, null, out offset))
+            if (int.TryParse(m.Groups[1].Value, System.Globalization.NumberStyles.HexNumber, null, out offset))
             {
-                return GetSubName(offset, name);
+                return GetDataName(offset, name);
             }
         }
         return name;
@@ -152,9 +152,9 @@ internal class Program
     {
         var offset = 0;
         var m = sub_name.Match(name);
-        if (m.Success)
+        if (m.Success && m.Groups.Count==2)
         {
-            if(int.TryParse(m.Value, System.Globalization.NumberStyles.HexNumber, null, out offset))
+            if (int.TryParse(m.Groups[1].Value, System.Globalization.NumberStyles.HexNumber, null, out offset))
             {
                 return GetSubName(offset, name);
             }
@@ -164,11 +164,15 @@ internal class Program
     static string ReplaceNames(string text)
     {
         text = data_name.Replace(text, 
-            (n) => { return GetDataName(n.Value); }
+            (n) => { 
+                return GetDataName(n.Value); 
+            }
             );
 
         text = sub_name.Replace(text,
-            (n) => { return GetSubName(n.Value); }
+            (n) => { 
+                return GetSubName(n.Value); 
+            }
             );
 
         return text;
@@ -242,8 +246,23 @@ internal class Program
                         //and keep it dict
                         var r = GetDataName(offset, n);
                         name_dict[n] = parts[0] = r;
-                        line = string.Join(" ", parts);
                     }
+                    for(int i = 0; i < parts.Length; i++)
+                    {
+                        switch (i)
+                        {
+                            case 0:
+                            parts[i] =  parts[i].PadRight(dcx.IsMatch(parts[i])?20:16);
+                            break;
+                            case 1:
+                            parts[i] = parts[i].PadRight(4);
+                            break;
+                            case 2:
+                            parts[i] = parts[i].PadRight(20);
+                            break;
+                        }
+                    }
+                    line = string.Join("", parts);
                 }
                 else if(parts.Length == 1 && parts[0].Length>0)
                 {
@@ -279,10 +298,14 @@ internal class Program
                         while (p < line.Length && line[p] == ' ') p++;
                     line = line[..p] + ReplaceNames(line[p..]);
                 }
+                //if (comment.StartsWith(';'))
+                //{
+                //    comment = new string(' ', 39) + comment;
+                //}
                 line = $"{segment}:{offset:X8} {line}{ReplaceNames(comment)}";
             }
-            Console.WriteLine(line);
-            //writer.WriteLine(line);
+            Console.WriteLine($"{lineno} {line}");
+            writer.WriteLine(line);
         }
         return 0;
     }
