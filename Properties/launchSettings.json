@@ -2,7 +2,7 @@
   "profiles": {
     "SymbolCompiler": {
       "commandName": "Project",
-      "commandLineArgs": "script.json stringliteral.json libil2cpp.c",
+      "commandLineArgs": "script.json stringliteral.json C:\\Working\\DouluoDalu\\clients\\dl0504-official\\assets\\luascript",
       "workingDirectory": "C:\\Working\\DouluoDalu\\libmain\\libil2cpp-dump"
     }
   }

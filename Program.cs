@@ -331,6 +331,36 @@ internal class Program
             writer.WriteLine(line);
         }
     }
+    static void ProcessStackDumpFile(string stack_dump_file,string stack_dump_compiled_file)
+    {
+        //STACK: #0015:0x768dd51ea8,0x56ac5ea8 |  | /data/app/com.sy.dldlhsdj.gw--STmIOAipmAEG8nRidJ1VA==/lib/arm64/libil2cpp.so
+
+
+    }
+    
+    static void ProcessDirectoryDumpFIle(string directory_to_dump, string directory_to_dump_file, string pattern ="*.bytes",string prefix = "@")
+    {
+        using var writer = new StreamWriter(directory_to_dump_file);
+        var files = Directory.GetFiles(directory_to_dump,pattern, SearchOption.AllDirectories);
+        if (!directory_to_dump.EndsWith(Path.DirectorySeparatorChar))
+        {
+            directory_to_dump += Path.DirectorySeparatorChar;
+        }
+        foreach(var file in files)
+        {
+            var name = file[directory_to_dump.Length..(file.Length-Path.GetExtension(file).Length)];
+            if (name.ToLower().StartsWith("lua\\"))
+            {
+                name = name["lua\\".Length..];
+            }
+            else if (name.ToLower().StartsWith("sourcelua\\"))
+            {
+                name = name["sourcelua\\".Length..];
+            }
+            name = prefix + name.Replace(Path.DirectorySeparatorChar, '/');
+            writer.WriteLine(name);
+        }
+    }
     static int Main(string[] args)
     {
         if (args.Length < 3)
@@ -355,6 +385,22 @@ internal class Program
             var il2cpp_c_compiled_file
                 = Path.ChangeExtension(il2cpp_c_file, ".compiled.c");
             ProcessCFile(il2cpp_c_file,il2cpp_c_compiled_file);
+        }
+        else if (Path.GetExtension(args[2]).ToLower() == ".txt")
+        {
+            var stack_dump_file = args[2];
+            var stack_dump_compiled_file
+                = Path.ChangeExtension(stack_dump_file, ".compiled.c");
+            ProcessStackDumpFile(stack_dump_file, stack_dump_compiled_file);
+        }
+        else if (Directory.Exists(args[2])) //if it is directory
+        {
+            var directory_to_dump = args[2];
+            var directory_name = Path.GetFileName(directory_to_dump) ?? "";
+            var parent_name = Path.GetDirectoryName(directory_to_dump);
+            var directory_to_dump_file = Path.Combine(parent_name, directory_name
+                 + ".compiled.txt");
+            ProcessDirectoryDumpFIle(directory_to_dump, directory_to_dump_file);
         }
 
 
