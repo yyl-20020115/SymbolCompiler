@@ -181,7 +181,7 @@ internal class Program
     static Regex data_name = new("(off_|byte_|word_|dword_|qword_)([0-9a-fA-F]{1,8})");
     static Regex sub_name = new("sub_([0-9a-fA-F]{1,8})");
     static bool UsefulOnly = true;
-    static void ProcessListFile(string il2cpp_list_file,string il2cpp_list_compiled_file)
+    static void ProcessListFile(string il2cpp_list_file, string il2cpp_list_compiled_file)
     {
         var current_sub = "";
         var current_function = "";
@@ -327,28 +327,55 @@ internal class Program
         string? line = null;
         while (null != (line = reader.ReadLine()))
         {
-            line=ReplaceNames(line);
+            line = ReplaceNames(line);
             writer.WriteLine(line);
         }
     }
-    static void ProcessStackDumpFile(string stack_dump_file,string stack_dump_compiled_file)
+    static void ProcessStackDumpFile(string stack_dump_file, string stack_dump_compiled_file)
     {
         //STACK: #0015:0x768dd51ea8,0x56ac5ea8 |  | /data/app/com.sy.dldlhsdj.gw--STmIOAipmAEG8nRidJ1VA==/lib/arm64/libil2cpp.so
-
-
+        using var reader = new StreamReader(stack_dump_file);
+        using var writer = new StreamWriter(stack_dump_compiled_file);
+        string? line = null;
+        while (null != (line = reader.ReadLine()))
+        {
+            if (line.StartsWith("STACK: #"))
+            {
+                var parts = line.Split('|', StringSplitOptions.RemoveEmptyEntries);
+                if (parts.Length >= 3 && parts[1].Trim().Length == 0)
+                {
+                    int p = parts[0].LastIndexOf(',');
+                    if (p >= 0)
+                    {
+                        var rva_text = parts[0][(p + 1)..];
+                        if (rva_text.StartsWith("0x") || rva_text.StartsWith("0X"))
+                        {
+                            if (int.TryParse(rva_text[2..],
+                                System.Globalization.NumberStyles.AllowHexSpecifier
+                                | System.Globalization.NumberStyles.HexNumber,null,out var rva))
+                            {
+                                parts[1] = $" {GetSubName(rva, $"sub_{rva:X8}")} ";
+                                line = string.Join('|', parts);
+                            }
+                        }
+                    }
+                }
+            }
+            writer.WriteLine(line);
+        }
     }
-    
-    static void ProcessDirectoryDumpFIle(string directory_to_dump, string directory_to_dump_file, string pattern ="*.bytes",string prefix = "@")
+
+    static void ProcessDirectoryDumpFIle(string directory_to_dump, string directory_to_dump_file, string pattern = "*.bytes", string prefix = "@")
     {
         using var writer = new StreamWriter(directory_to_dump_file);
-        var files = Directory.GetFiles(directory_to_dump,pattern, SearchOption.AllDirectories);
+        var files = Directory.GetFiles(directory_to_dump, pattern, SearchOption.AllDirectories);
         if (!directory_to_dump.EndsWith(Path.DirectorySeparatorChar))
         {
             directory_to_dump += Path.DirectorySeparatorChar;
         }
-        foreach(var file in files)
+        foreach (var file in files)
         {
-            var name = file[directory_to_dump.Length..(file.Length-Path.GetExtension(file).Length)];
+            var name = file[directory_to_dump.Length..(file.Length - Path.GetExtension(file).Length)];
             if (name.ToLower().StartsWith("lua\\"))
             {
                 name = name["lua\\".Length..];
@@ -384,13 +411,13 @@ internal class Program
             var il2cpp_c_file = args[2];
             var il2cpp_c_compiled_file
                 = Path.ChangeExtension(il2cpp_c_file, ".compiled.c");
-            ProcessCFile(il2cpp_c_file,il2cpp_c_compiled_file);
+            ProcessCFile(il2cpp_c_file, il2cpp_c_compiled_file);
         }
         else if (Path.GetExtension(args[2]).ToLower() == ".txt")
         {
             var stack_dump_file = args[2];
             var stack_dump_compiled_file
-                = Path.ChangeExtension(stack_dump_file, ".compiled.c");
+                = Path.ChangeExtension(stack_dump_file, ".compiled.txt");
             ProcessStackDumpFile(stack_dump_file, stack_dump_compiled_file);
         }
         else if (Directory.Exists(args[2])) //if it is directory
