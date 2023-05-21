@@ -347,16 +347,14 @@ internal class Program
                     if (p >= 0)
                     {
                         var rva_text = parts[0][(p + 3)..];
-                        if (rva_text.StartsWith("0x") || rva_text.StartsWith("0X"))
+                        if ((rva_text.StartsWith("0x") || rva_text.StartsWith("0X"))
+                            && int.TryParse(rva_text[2..],
+                            System.Globalization.NumberStyles.AllowHexSpecifier
+                            | System.Globalization.NumberStyles.HexNumber, null, out var rva))
                         {
-                            if (int.TryParse(rva_text[2..],
-                                System.Globalization.NumberStyles.AllowHexSpecifier
-                                | System.Globalization.NumberStyles.HexNumber, null, out var rva))
-                            {
-                                var (s, of) = GetStartAddress(rva);
-                                parts[1] = s != 0 ? $" {GetSubName(s, $"sub_{s:X8}")}({s:X8}) + {of:X8}" : $" {GetSubName(rva, $"sub_{rva:X8}")} ";
-                                line = string.Join('|', parts);
-                            }
+                            var (start, offset) = GetStartAddress(rva);
+                            parts[1] = start != 0 ? $" {GetSubName(start, $"sub_{start:X8}")}({start:X8}) + {offset:X8}" : $" {GetSubName(rva, $"sub_{rva:X8}")} ";
+                            line = string.Join('|', parts);
                         }
                     }
                 }
