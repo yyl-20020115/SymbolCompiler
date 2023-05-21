@@ -13,38 +13,6 @@ internal class Program
     readonly static Dictionary<int, (string, int)> metadata_method_dict = new();
     readonly static List<int> addresses_values = new();
 
-    static bool GetSymbols(int offset, StringBuilder builder)
-    {
-        var any = false;
-        if (stringliteral_dict.TryGetValue(offset, out var symbol))
-        {
-            builder.AppendLine(symbol);
-            any = true;
-        }
-        if (script_string_dict.TryGetValue(offset, out var script))
-        {
-            builder.AppendLine(script);
-            any = true;
-        }
-        if (method_dict.TryGetValue(offset, out var method))
-        {
-            builder.AppendLine(method);
-            any = true;
-        }
-        if (metadata_dict.TryGetValue(offset, out var metadata))
-        {
-            builder.AppendLine(metadata);
-            any = true;
-        }
-        if (metadata_method_dict.TryGetValue(offset, out var metadata_method))
-        {
-            builder.AppendLine($"{metadata_method.Item1}:{metadata_method.Item2}");
-            any = true;
-        }
-
-        return any;
-    }
-
     enum SymbolType : int
     {
         None = 0,
@@ -181,6 +149,7 @@ internal class Program
     static Regex data_name = new("(off_|byte_|word_|dword_|qword_)([0-9a-fA-F]{1,8})");
     static Regex sub_name = new("sub_([0-9a-fA-F]{1,8})");
     static bool UsefulOnly = true;
+    //script.json stringliteral.json C:\Working\DouluoDalu\libmain\libil2cpp-dump\libil2cpp-64.lst
     static void ProcessListFile(string il2cpp_list_file, string il2cpp_list_compiled_file)
     {
         var current_sub = "";
@@ -320,6 +289,7 @@ internal class Program
 
     }
 
+    //script.json stringliteral.json C:\Working\DouluoDalu\libmain\libil2cpp-dump\libil2cpp-64.c
     static void ProcessCFile(string il2cpp_c_file, string il2cpp_c_compiled_file)
     {
         using var reader = new StreamReader(il2cpp_c_file);
@@ -331,6 +301,7 @@ internal class Program
             writer.WriteLine(line);
         }
     }
+    //script.json stringliteral.json C:\Working\DouluoDalu\libmain\libil2cpp-dump\stack_libtolua.txt
     static void ProcessStackDumpFile(string stack_dump_file, string stack_dump_compiled_file)
     {
         //STACK: #0015:0x768dd51ea8,0x56ac5ea8 |  | /data/app/com.sy.dldlhsdj.gw--STmIOAipmAEG8nRidJ1VA==/lib/arm64/libil2cpp.so
