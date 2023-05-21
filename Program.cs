@@ -82,14 +82,6 @@ internal class Program
         }
 
     }
-    static readonly string[] Prefixes =
-    {
-        "off_",
-        "byte_",
-        "word_",
-        "dword_",
-        "qword_",
-    };
 
     static string GetDataName(int offset, string name)
     {
@@ -127,28 +119,15 @@ internal class Program
         return name;
     }
     static string ReplaceNames(string text)
-    {
-        text = data_name.Replace(text,
-            (n) =>
-            {
-                return GetDataName(n.Value);
-            }
-            );
+        => sub_name.Replace(
+             data_name.Replace(text,
+               (n) => GetDataName(n.Value)),
+               (n) => GetSubName(n.Value));
 
-        text = sub_name.Replace(text,
-            (n) =>
-            {
-                return GetSubName(n.Value);
-            }
-            );
-
-        return text;
-    }
-    static Regex module_name =new("Module\\(0x([0-9a-fA-F]{1,8}),0x([0-9a-fA-F]{1,8})\\)\\:(.*)");
+    static Regex module_name = new("Module\\(0x([0-9a-fA-F]{1,8}),0x([0-9a-fA-F]{1,8})\\)\\:(.*)");
     static Regex dcx = new("DC[BWDQ]");
     static Regex data_name = new("(off_|byte_|word_|dword_|qword_)([0-9a-fA-F]{1,8})");
     static Regex sub_name = new("sub_([0-9a-fA-F]{1,8})");
-    static bool UsefulOnly = true;
     //script.json stringliteral.json C:\Working\DouluoDalu\libmain\libil2cpp-dump-64\libil2cpp-64.lst
     static void ProcessListFile(string il2cpp_list_file, string il2cpp_list_compiled_file)
     {
@@ -301,39 +280,37 @@ internal class Program
             writer.WriteLine(line);
         }
     }
-    static int GetStartAddress(int rva, ref int offset)
+    static (int, int) GetStartAddress(int rva)
+        => GetStartAddressWithArray(rva,
+            metadata_method_dict.Keys.ToArray(),
+            method_dict.Keys.ToArray());
+
+    static (int, int) GetStartAddressWithArray(int rva, params int[][] addressesArray)
     {
-        int s = GetStartAddress(rva, ref offset, metadata_method_dict.Keys.ToArray());
-        if(s == 0)
+        foreach (var addresses in addressesArray)
         {
-            s = GetStartAddress(rva, ref offset, method_dict.Keys.ToArray());   
-        }
-        return s;
-    }
-    static int GetStartAddress(int rva, ref int offset, int[] addresses)
-    {
-        for(int i = 0; i < addresses.Length; i++)
-        {
-            int pre = addresses[i];
-            if (i < addresses.Length - 1)
+            for (int i = 0; i < addresses.Length; i++)
             {
-                int post = addresses[i + 1];
-                if(rva>=pre && rva < post)
+                int pre = addresses[i];
+                if (i < addresses.Length - 1)
                 {
-                    offset = rva - pre;
-                    return pre;
+                    int post = addresses[i + 1];
+                    if (rva >= pre && rva < post)
+                    {
+                        return (pre, rva - pre);
+                    }
                 }
-            }else if(i == addresses.Length - 1)
-            {
-                if (rva >= pre)
+                else if (i == addresses.Length - 1)
                 {
-                    offset = rva - pre;
-                    return offset >= 0x100 ? 0 : pre;
+                    if (rva >= pre)
+                    {
+                        return (pre, rva - pre);
+                    }
                 }
             }
         }
 
-        return 0;
+        return (0, 0);
     }
     //script.json stringliteral.json C:\Working\DouluoDalu\libmain\libil2cpp-dump-64\stack_libtolua.txt
     static void ProcessStackDumpFile(string stack_dump_file, string stack_dump_compiled_file)
@@ -350,13 +327,13 @@ internal class Program
             line = line.Trim();
             if (line.Length == 0) continue;
             var m = module_name.Match(line);
-            if(m.Success && m.Groups.Count==4)
+            if (m.Success && m.Groups.Count == 4)
             {
                 var start_text = m.Groups[1].Value;
                 var end_text = m.Groups[2].Value;
                 var name_text = m.Groups[3].Value;
-                if(long.TryParse(start_text, System.Globalization.NumberStyles.HexNumber,null,out var start)
-                    && long.TryParse(end_text, System.Globalization.NumberStyles.HexNumber,null,out var end))
+                if (long.TryParse(start_text, System.Globalization.NumberStyles.HexNumber, null, out var start)
+                    && long.TryParse(end_text, System.Globalization.NumberStyles.HexNumber, null, out var end))
                 {
                     modules.Add((start, end), name_text);
                 }
@@ -374,18 +351,10 @@ internal class Program
                         {
                             if (int.TryParse(rva_text[2..],
                                 System.Globalization.NumberStyles.AllowHexSpecifier
-                                | System.Globalization.NumberStyles.HexNumber,null,out var rva))
+                                | System.Globalization.NumberStyles.HexNumber, null, out var rva))
                             {
-                                int of = 0;
-                                int s = GetStartAddress(rva, ref of);
-                                if (s != 0)
-                                {
-                                    parts[1] = $" {GetSubName(s, $"sub_{s:X8}")}({s:X8}) + {of:X8}";
-                                }
-                                else
-                                {
-                                    parts[1] = $" {GetSubName(rva, $"sub_{rva:X8}")} ";
-                                }
+                                var (s, of) = GetStartAddress(rva);
+                                parts[1] = s != 0 ? $" {GetSubName(s, $"sub_{s:X8}")}({s:X8}) + {of:X8}" : $" {GetSubName(rva, $"sub_{rva:X8}")} ";
                                 line = string.Join('|', parts);
                             }
                         }
