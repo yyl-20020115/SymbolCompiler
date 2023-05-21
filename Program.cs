@@ -271,13 +271,17 @@ internal class Program
     //script.json stringliteral.json C:\Working\DouluoDalu\libmain\libil2cpp-dump-64\libil2cpp-64.c
     static void ProcessCFile(string il2cpp_c_file, string il2cpp_c_compiled_file)
     {
+        var lineno = 0;
+        var changes = 0;
         using var reader = new StreamReader(il2cpp_c_file);
         using var writer = new StreamWriter(il2cpp_c_compiled_file);
         string? line = null;
         while (null != (line = reader.ReadLine()))
         {
-            line = ReplaceNames(line);
-            writer.WriteLine(line);
+            lineno++;
+            var outline = ReplaceNames(line);
+            if (line != outline) changes++;
+            writer.WriteLine(outline);
         }
     }
     static (int, int) GetStartAddress(int rva)
