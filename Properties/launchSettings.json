@@ -2,7 +2,7 @@
   "profiles": {
     "SymbolCompiler": {
       "commandName": "Project",
-      "commandLineArgs": "script.json stringliteral.json C:\\Working\\DouluoDalu\\libmain\\libil2cpp-dump\\libil2cpp-64.lst",
+      "commandLineArgs": "script.json stringliteral.json C:\\Working\\DouluoDalu\\libmain\\libil2cpp-dump-64\\stack_libtolua.txt",
       "workingDirectory": "C:\\Working\\DouluoDalu\\libmain\\libil2cpp-dump-64"
     }
   }

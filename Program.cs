@@ -6,11 +6,11 @@ namespace SymbolCompiler;
 
 internal class Program
 {
-    readonly static Dictionary<int, string> stringliteral_dict = new();
-    readonly static Dictionary<int, string> script_string_dict = new();
-    readonly static Dictionary<int, string> method_dict = new();
-    readonly static Dictionary<int, string> metadata_dict = new();
-    readonly static Dictionary<int, (string, int)> metadata_method_dict = new();
+    readonly static SortedDictionary<int, string> stringliteral_dict = new();
+    readonly static SortedDictionary<int, string> script_string_dict = new();
+    readonly static SortedDictionary<int, string> metadata_dict = new();
+    readonly static SortedDictionary<int, string> method_dict = new();
+    readonly static SortedDictionary<int, (string, int)> metadata_method_dict = new();
     readonly static List<int> addresses_values = new();
 
     enum SymbolType : int
@@ -144,12 +144,12 @@ internal class Program
 
         return text;
     }
-
+    static Regex module_name =new("Module\\(0x([0-9a-fA-F]{1,8}),0x([0-9a-fA-F]{1,8})\\)\\:(.*)");
     static Regex dcx = new("DC[BWDQ]");
     static Regex data_name = new("(off_|byte_|word_|dword_|qword_)([0-9a-fA-F]{1,8})");
     static Regex sub_name = new("sub_([0-9a-fA-F]{1,8})");
     static bool UsefulOnly = true;
-    //script.json stringliteral.json C:\Working\DouluoDalu\libmain\libil2cpp-dump\libil2cpp-64.lst
+    //script.json stringliteral.json C:\Working\DouluoDalu\libmain\libil2cpp-dump-64\libil2cpp-64.lst
     static void ProcessListFile(string il2cpp_list_file, string il2cpp_list_compiled_file)
     {
         var current_sub = "";
@@ -289,7 +289,7 @@ internal class Program
 
     }
 
-    //script.json stringliteral.json C:\Working\DouluoDalu\libmain\libil2cpp-dump\libil2cpp-64.c
+    //script.json stringliteral.json C:\Working\DouluoDalu\libmain\libil2cpp-dump-64\libil2cpp-64.c
     static void ProcessCFile(string il2cpp_c_file, string il2cpp_c_compiled_file)
     {
         using var reader = new StreamReader(il2cpp_c_file);
@@ -301,31 +301,91 @@ internal class Program
             writer.WriteLine(line);
         }
     }
-    //script.json stringliteral.json C:\Working\DouluoDalu\libmain\libil2cpp-dump\stack_libtolua.txt
+    static int GetStartAddress(int rva, ref int offset)
+    {
+        int s = GetStartAddress(rva, ref offset, metadata_method_dict.Keys.ToArray());
+        if(s == 0)
+        {
+            s = GetStartAddress(rva, ref offset, method_dict.Keys.ToArray());   
+        }
+        return s;
+    }
+    static int GetStartAddress(int rva, ref int offset, int[] addresses)
+    {
+        for(int i = 0; i < addresses.Length; i++)
+        {
+            int pre = addresses[i];
+            if (i < addresses.Length - 1)
+            {
+                int post = addresses[i + 1];
+                if(rva>=pre && rva < post)
+                {
+                    offset = rva - pre;
+                    return pre;
+                }
+            }else if(i == addresses.Length - 1)
+            {
+                if (rva >= pre)
+                {
+                    offset = rva - pre;
+                    return offset >= 0x100 ? 0 : pre;
+                }
+            }
+        }
+
+        return 0;
+    }
+    //script.json stringliteral.json C:\Working\DouluoDalu\libmain\libil2cpp-dump-64\stack_libtolua.txt
     static void ProcessStackDumpFile(string stack_dump_file, string stack_dump_compiled_file)
     {
         //STACK: #0015:0x768dd51ea8,0x56ac5ea8 |  | /data/app/com.sy.dldlhsdj.gw--STmIOAipmAEG8nRidJ1VA==/lib/arm64/libil2cpp.so
         using var reader = new StreamReader(stack_dump_file);
         using var writer = new StreamWriter(stack_dump_compiled_file);
         string? line = null;
+        var lineno = 0;
+        var modules = new Dictionary<(long, long), string>();
         while (null != (line = reader.ReadLine()))
         {
-            if (line.StartsWith("STACK: #"))
+            lineno++;
+            line = line.Trim();
+            if (line.Length == 0) continue;
+            var m = module_name.Match(line);
+            if(m.Success && m.Groups.Count==4)
+            {
+                var start_text = m.Groups[1].Value;
+                var end_text = m.Groups[2].Value;
+                var name_text = m.Groups[3].Value;
+                if(long.TryParse(start_text, System.Globalization.NumberStyles.HexNumber,null,out var start)
+                    && long.TryParse(end_text, System.Globalization.NumberStyles.HexNumber,null,out var end))
+                {
+                    modules.Add((start, end), name_text);
+                }
+            }
+            else if (line.StartsWith("STACK: #"))
             {
                 var parts = line.Split('|', StringSplitOptions.RemoveEmptyEntries);
                 if (parts.Length >= 3 && parts[1].Trim().Length == 0)
                 {
-                    int p = parts[0].LastIndexOf(',');
+                    int p = parts[0].LastIndexOf(" = ");
                     if (p >= 0)
                     {
-                        var rva_text = parts[0][(p + 1)..];
+                        var rva_text = parts[0][(p + 3)..];
                         if (rva_text.StartsWith("0x") || rva_text.StartsWith("0X"))
                         {
                             if (int.TryParse(rva_text[2..],
                                 System.Globalization.NumberStyles.AllowHexSpecifier
                                 | System.Globalization.NumberStyles.HexNumber,null,out var rva))
                             {
-                                parts[1] = $" {GetSubName(rva, $"sub_{rva:X8}")} ";
+                                int of = 0;
+                                int s = GetStartAddress(rva, ref of);
+                                if (s != 0)
+                                {
+                                    parts[1] = $" {GetSubName(s, $"sub_{s:X8}")}({s:X8}) + {of:X8}";
+                                }
+                                else
+                                {
+                                    parts[1] = $" {GetSubName(rva, $"sub_{rva:X8}")} ";
+                                }
                                 line = string.Join('|', parts);
                             }
                         }
